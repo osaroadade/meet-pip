@@ -1,0 +1,35 @@
+{
+	"manifest_version": 3,
+	"name": "Meet PIP",
+	"version": "1.0.0",
+	"description": "Smart Picture-in-Picture for Google Meet active speakers.",
+	"permissions": [
+		"scripting",
+		"activeTab",
+		"nativeMessaging"
+	],
+	"background": {
+		"service_worker": "background.js",
+		"type": "module"
+	},
+	"content_scripts": [
+		{
+			"matches": [
+				"https://meet.google.com/*"
+			],
+			"js": [
+				"content-script.js"
+			]
+		}
+	],
+	"web_accessible_resources": [
+		{
+			"resources": [
+				"pip-blocker.js"
+			],
+			"matches": [
+				"https://meet.google.com/*"
+			]
+		}
+	]
+}
