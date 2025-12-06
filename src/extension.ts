@@ -2,6 +2,25 @@ import { SpeakerDetector } from './detector';
 
 const detector = new SpeakerDetector();
 
+// Critical: Inject the blocker script as early as possible (at document_start)
+// to ensure we override the prototype before Google Meet code runs.
+function injectBlocker() {
+	try {
+		console.log('Injecting PIP blocker...');
+		const script = document.createElement('script');
+		script.src = chrome.runtime.getURL('pip-blocker.js');
+		(document.head || document.documentElement).appendChild(script);
+		script.onload = () => {
+			script.remove();
+		};
+	} catch (e) {
+		console.error('Failed to inject PIP blocker:', e);
+	}
+}
+
+// Inject immediately!
+injectBlocker();
+
 
 class NativeBridge {
 	private port: chrome.runtime.Port | null = null;
@@ -15,12 +34,6 @@ class NativeBridge {
 	private connect() {
 		try {
 			console.log(`Connecting to background script...`);
-			const script = document.createElement('script');
-			script.src = chrome.runtime.getURL('pip-blocker.js');
-			(document.head || document.documentElement).appendChild(script);
-			script.onload = () => {
-				script.remove();
-			};
 
 			// Connect to background script which proxies to native host
 			this.port = chrome.runtime.connect({ name: 'meet-pip-content' });
@@ -62,6 +75,15 @@ class NativeBridge {
 				this.isConnected = false;
 			}
 
+			// Check for invalidation to avoid zombie scripts
+			if (!chrome.runtime?.id) {
+				console.log('Extension context invalidated. Stopping loop.');
+				this.isConnected = false;
+				this.stopLoop();
+				removeControls();
+				return;
+			}
+
 			// Loop frequency: 30fps is overkill for just data. 10fps is enough.
 			// But requestAnimationFrame is 60fps. Lower frequency might be better but rAF is simplest.
 			this.loopId = requestAnimationFrame(loop);
@@ -94,8 +116,20 @@ function init() {
 }
 
 // Add a simple UI button to "Reconnect" or "Start Native PIP"
+const BUTTON_ID = 'meet-pip-control-btn';
+
+function removeControls() {
+	const existing = document.getElementById(BUTTON_ID);
+	if (existing) {
+		existing.remove();
+	}
+}
+
 function addControls() {
+	removeControls(); // Ensure only one button exists
+
 	const btn = document.createElement('button');
+	btn.id = BUTTON_ID;
 	btn.innerText = 'Start Native PIP';
 	btn.style.position = 'fixed';
 	btn.style.bottom = '80px';
@@ -120,6 +154,9 @@ function addControls() {
 
 	document.body.appendChild(btn);
 }
+
+// Cleanup any potential leftovers from previous injections immediately
+removeControls();
 
 if (document.body) {
 	addControls();

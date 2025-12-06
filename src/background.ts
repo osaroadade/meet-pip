@@ -2,6 +2,25 @@ const HOST_NAME = 'com.meetpip.app';
 
 console.log('Background script loaded');
 
+// On install or update, inject the content script into existing Meet tabs
+chrome.runtime.onInstalled.addListener(async () => {
+	console.log('Extension installed/updated. Injecting into existing tabs...');
+	const tabs = await chrome.tabs.query({ url: 'https://meet.google.com/*' });
+	for (const tab of tabs) {
+		if (tab.id) {
+			try {
+				await chrome.scripting.executeScript({
+					target: { tabId: tab.id },
+					files: ['content-script.js']
+				});
+				console.log(`Injected content script into tab ${tab.id}`);
+			} catch (err) {
+				console.error(`Failed to inject into tab ${tab.id}:`, err);
+			}
+		}
+	}
+});
+
 chrome.runtime.onConnect.addListener((port) => {
 	if (port.name === 'meet-pip-content') {
 		console.log('Connected to content script');
