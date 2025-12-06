@@ -5,54 +5,75 @@ Meet PIP is a hybrid application that enhances the Google Meet Picture-in-Pictur
 ## Project Structure
 
 - **`src/`**: Source code for the Chrome Extension (Content Script, Background Script).
-- **`meetpip/`**: Source code for the native macOS application (Swift/SwiftUI).
+- **`meet-pip/`**: Source code for the native macOS application (Swift/SwiftUI).
 - **`native-setup/`**: Scripts and configuration for setting up the Native Messaging Host.
 
 ## Prerequisites
 
 - Node.js (v18+ recommended)
-- Xcode (for building the native app)
+- Xcode (latest version) & Xcode Command Line Tools
 - Google Chrome
 
 ## Installation & Setup
 
-1.  **Install Dependencies**
+We use a `Makefile` to streamline the build and setup process.
+
+### 1. Install Dependencies & Build
+Install Node dependencies and build both the extension and the native app:
+
+```bash
+make install
+make build
+```
+
+This will:
+- Build the Chrome Extension into `dist/`.
+- Build the Native App into `meet-pip/DerivedData/`.
+
+### 2. Load Extension in Chrome
+1.  Open Chrome and navigate to `chrome://extensions/`.
+2.  Enable "Developer mode" (top right).
+3.  Click "Load unpacked" and select the `dist` directory in this project.
+4.  copy the **ID** of the newly loaded extension (e.g., `gpdhpobcgfffikfchpgdffmbbkllgmfm`).
+
+### 3. Configure Native Host
+1.  Copy the example configuration file:
     ```bash
-    npm install
+    cp .env.example .env
+    ```
+2.  Open `.env` and paste your Extension ID:
+    ```env
+    EXTENSION_ID=your_copied_id_here
+    ```
+3.  Run the setup script:
+    ```bash
+    make setup
     ```
 
-2.  **Build the Extension**
-    ```bash
-    npm run build
-    ```
-    This will generate the extension assets in the `dist/` directory.
+This script will register the native messaging host with Chrome, pointing it to your local build of the native app.
 
-3.  **Load Extension in Chrome**
-    - Open Chrome and navigate to `chrome://extensions/`.
-    - Enable "Developer mode".
-    - Click "Load unpacked" and select the `dist` directory.
-
-4.  **Setup Native Messaging Host**
-    Run the installation script to register the native host manifest:
-    ```bash
-    cd native-setup
-    ./install.sh
-    ```
-
-5.  **Build Native App**
-    - Open `meetpip/MeetPIP.xcodeproj` in Xcode.
-    - Build and Run the application.
+### 4. Verify
+1.  Open a Google Meet session.
+2.  You should see a "Start Native PIP" button.
+3.  Clicking it should launch the native MeetPIP window.
 
 ## Development
 
-To start the Vite development server for the UI components:
+- `make build-extension`: Rebuild just the extension.
+- `make build-app`: Rebuild just the native app.
+- `npm run dev`: Start the Vite dev server for UI components.
 
-```bash
-npm run dev
-```
+## Troubleshooting
 
-## Scripts
+**"Native PiP blocked" not appearing?**
+Reload the extension in `chrome://extensions` and refresh the Google Meet page.
 
-- `npm run dev`: Start the dev server.
-- `npm run build`: Type-check and build all parts of the extension (Main, Content, Background).
-- `npm run preview`: Preview the build.
+**"Translation context invalidated"?**
+The extension supports hot-reloading. Just reload the extension in `chrome://extensions` and the "Start Native PIP" button should refresh automatically.
+
+**"Binary not found"?**
+Run `make build-app` to ensure the native application is compiled.
+
+## License
+
+ISC
