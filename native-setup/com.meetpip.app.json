@@ -1,0 +1,9 @@
+{
+	"name": "com.meetpip.app",
+	"description": "Native Host for Meet PIP",
+	"path": "/Users/osaroadade/Documents/Development/meet-pip/meetpip/DerivedData/meetpip/Build/Products/Debug/meetpip.app/Contents/MacOS/meetpip",
+	"type": "stdio",
+	"allowed_origins": [
+		"chrome-extension://gpdhpobcgfffikfchpgdffmbbkllgmfm/"
+	]
+}
