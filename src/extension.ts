@@ -28,7 +28,6 @@ class NativeBridge {
 	private loopId: number = 0;
 
 	private muteObserver: MutationObserver | null = null;
-	private lastUpdate = 0;
 
 	constructor() {
 		this.connect();
@@ -62,12 +61,19 @@ class NativeBridge {
 	}
 
 	private findMicButton(): HTMLElement | null {
-		return document.querySelector('button[aria-label*="microphone"], button[aria-label*="Microphone"]') as HTMLElement;
+		// Target the main call controls bar, not participant tiles or dropdowns
+		const callControls = document.querySelector('[aria-label="Call controls"]');
+		if (!callControls) return null;
+
+		// Find the main mute button (has data-is-muted attribute)
+		return callControls.querySelector('button[aria-label*="microphone"][data-is-muted]') as HTMLElement;
 	}
 
 	private isMicButton(el: HTMLElement): boolean {
+		// Only match buttons with data-is-muted (the main toggle, not device selectors)
 		const label = el.getAttribute('aria-label');
-		return (label && label.toLowerCase().includes('microphone')) || false;
+		const hasMutedAttr = el.hasAttribute('data-is-muted');
+		return hasMutedAttr && (label && label.toLowerCase().includes('microphone')) || false;
 	}
 
 	private checkMuteState(btn: HTMLElement) {
@@ -118,8 +124,13 @@ class NativeBridge {
 	private startLoop() {
 		if (this.loopId) return;
 
-		const loop = () => {
-			if (!this.isConnected || !this.port) return;
+		// Use setInterval instead of requestAnimationFrame
+		// RAF stops in background tabs, but setInterval continues running
+		this.loopId = window.setInterval(() => {
+			if (!this.isConnected || !this.port) {
+				this.stopLoop();
+				return;
+			}
 
 			// Validate extension context
 			if (!chrome.runtime?.id) {
@@ -130,29 +141,21 @@ class NativeBridge {
 				return;
 			}
 
-			// Throttle to ~10fps (every 100ms)
-			const now = Date.now();
-			if (now - this.lastUpdate > 100) {
-				this.lastUpdate = now;
-
-				const speakers = detector.detect();
-				// Send data to Native App
-				try {
-					this.port.postMessage({ type: 'update', speakers });
-				} catch (e) {
-					console.error('Error posting message:', e);
-					this.isConnected = false;
-				}
+			const speakers = detector.detect();
+			// Send data to Native App
+			try {
+				this.port.postMessage({ type: 'update', speakers });
+			} catch (e) {
+				console.error('Error posting message:', e);
+				this.isConnected = false;
+				this.stopLoop();
 			}
-
-			this.loopId = requestAnimationFrame(loop);
-		};
-		this.loopId = requestAnimationFrame(loop);
+		}, 100); // Run every 100ms (10fps)
 	}
 
 	private stopLoop() {
 		if (this.loopId) {
-			cancelAnimationFrame(this.loopId);
+			clearInterval(this.loopId);
 			this.loopId = 0;
 		}
 	}
