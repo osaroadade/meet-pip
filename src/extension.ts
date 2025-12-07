@@ -27,8 +27,62 @@ class NativeBridge {
 	private isConnected = false;
 	private loopId: number = 0;
 
+	private muteObserver: MutationObserver | null = null;
+	private lastUpdate = 0;
+
 	constructor() {
 		this.connect();
+		this.setupMuteObserver();
+	}
+
+	private setupMuteObserver() {
+		if (this.muteObserver) return;
+
+		// Observer for Mute State
+		// Google Meet Mute Button changes aria-label: "Turn off microphone" (unmuted) <-> "Turn on microphone" (muted)
+		const observerConfig = { attributes: true, subtree: true, attributeFilter: ['aria-label', 'data-is-muted'] };
+
+		this.muteObserver = new MutationObserver((mutations) => {
+			for (const mutation of mutations) {
+				const target = mutation.target as HTMLElement;
+				if (this.isMicButton(target)) {
+					this.checkMuteState(target);
+				}
+			}
+		});
+
+		const controlsBar = document.body; // Observing body is easiest to catch the footer
+		this.muteObserver.observe(controlsBar, observerConfig);
+
+		// Initial check
+		setTimeout(() => {
+			const micBtn = this.findMicButton();
+			if (micBtn) this.checkMuteState(micBtn);
+		}, 2000); // Give time for UI to load
+	}
+
+	private findMicButton(): HTMLElement | null {
+		return document.querySelector('button[aria-label*="microphone"], button[aria-label*="Microphone"]') as HTMLElement;
+	}
+
+	private isMicButton(el: HTMLElement): boolean {
+		const label = el.getAttribute('aria-label');
+		return (label && label.toLowerCase().includes('microphone')) || false;
+	}
+
+	private checkMuteState(btn: HTMLElement) {
+		const label = btn.getAttribute('aria-label') || '';
+		// "Turn on microphone" means it is CURRENTLY MUTED
+		const isMuted = label.toLowerCase().includes('turn on');
+
+		console.log(`[MeetPIP] Mute Sync: Label="${label}" -> Muted=${isMuted}`);
+
+		if (this.isConnected && this.port) {
+			this.port.postMessage({
+				type: 'mute-state',
+				isMuted: isMuted
+			});
+		}
 	}
 
 	private connect() {
@@ -40,7 +94,9 @@ class NativeBridge {
 
 			this.port.onMessage.addListener((msg) => {
 				console.log('Received message from native app (via background):', msg);
-				// Handle messages from Swift app if needed (e.g. "Close PIP")
+				if (msg.type === 'toggle-mute') {
+					this.toggleMute();
+				}
 			});
 
 			this.port.onDisconnect.addListener(() => {
@@ -65,17 +121,7 @@ class NativeBridge {
 		const loop = () => {
 			if (!this.isConnected || !this.port) return;
 
-			const speakers = detector.detect();
-			// Send data to Native App
-			// Structure: { type: "update", speakers: [{avatarUrl: "...", name: "..."}] }
-			try {
-				this.port.postMessage({ type: 'update', speakers });
-			} catch (e) {
-				console.error('Error posting message:', e);
-				this.isConnected = false;
-			}
-
-			// Check for invalidation to avoid zombie scripts
+			// Validate extension context
 			if (!chrome.runtime?.id) {
 				console.log('Extension context invalidated. Stopping loop.');
 				this.isConnected = false;
@@ -84,8 +130,21 @@ class NativeBridge {
 				return;
 			}
 
-			// Loop frequency: 30fps is overkill for just data. 10fps is enough.
-			// But requestAnimationFrame is 60fps. Lower frequency might be better but rAF is simplest.
+			// Throttle to ~10fps (every 100ms)
+			const now = Date.now();
+			if (now - this.lastUpdate > 100) {
+				this.lastUpdate = now;
+
+				const speakers = detector.detect();
+				// Send data to Native App
+				try {
+					this.port.postMessage({ type: 'update', speakers });
+				} catch (e) {
+					console.error('Error posting message:', e);
+					this.isConnected = false;
+				}
+			}
+
 			this.loopId = requestAnimationFrame(loop);
 		};
 		this.loopId = requestAnimationFrame(loop);
@@ -98,9 +157,49 @@ class NativeBridge {
 		}
 	}
 
+	public disconnect() {
+		if (this.isConnected) {
+			console.log('Disconnecting from native bridge...');
+			this.isConnected = false;
+			this.stopLoop();
+			if (this.port) {
+				this.port.disconnect();
+				this.port = null;
+			}
+			if (this.muteObserver) {
+				this.muteObserver.disconnect();
+				this.muteObserver = null;
+			}
+		}
+	}
+
 	public reconnect() {
 		if (!this.isConnected) {
 			this.connect();
+			this.setupMuteObserver();
+		}
+	}
+
+	private toggleMute() {
+		// Attempt to toggle mute by clicking the microphone button
+		// Google Meet buttons usually have aria-labels containing "microphone"
+		const micButton = this.findMicButton();
+		if (micButton) {
+			console.log('Toggling mute via button click');
+			micButton.click();
+			// Optimistic update
+			// this.checkMuteState(micButton); // Logic is async due to react, observer should catch it
+		} else {
+			// Fallback: Dispatch Command+D (Mac) / Control+D (Windows/Linux)
+			console.log('Toggling mute via keyboard shortcut');
+			const isMac = (navigator.userAgentData?.platform === 'macOS') || (navigator.platform.toUpperCase().indexOf('MAC') >= 0);
+			document.body.dispatchEvent(new KeyboardEvent('keydown', {
+				key: 'd',
+				code: 'KeyD',
+				metaKey: isMac,
+				ctrlKey: !isMac,
+				bubbles: true
+			}));
 		}
 	}
 }
@@ -130,7 +229,12 @@ function addControls() {
 
 	const btn = document.createElement('button');
 	btn.id = BUTTON_ID;
-	btn.innerText = 'Start Native PIP';
+	// Since we auto-connect in init(), the state starts as connected/active.
+	// If init() hasn't run yet, it will run shortly. 
+	// To be safe, we default to "Stop" if bridge exists, or "Start" if not, but init() is called immediately after.
+	// Actually, easier: We init() at bottom.
+	const isRunning = bridge && bridge['isConnected'];
+	btn.innerText = isRunning ? 'Stop Native PIP' : 'Start Native PIP';
 	btn.style.position = 'fixed';
 	btn.style.bottom = '80px';
 	btn.style.right = '20px';
@@ -145,10 +249,16 @@ function addControls() {
 	btn.style.fontWeight = '500';
 
 	btn.onclick = () => {
-		if (bridge) {
-			bridge.reconnect();
+		if (bridge && bridge['isConnected']) {
+			bridge.disconnect();
+			btn.innerText = 'Start Native PIP';
 		} else {
-			init();
+			if (bridge) {
+				bridge.reconnect();
+			} else {
+				init();
+			}
+			btn.innerText = 'Stop Native PIP';
 		}
 	};
 

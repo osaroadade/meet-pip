@@ -30,6 +30,7 @@ build-app:
 		-scheme "$(XCODE_SCHEME)" \
 		-derivedDataPath "$(DERIVED_DATA)" \
 		-configuration Debug \
+		$(if $(TEAM_ID),CODE_SIGN_IDENTITY="$(TEAM_ID)",) \
 		build
 
 setup:

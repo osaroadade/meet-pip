@@ -57,10 +57,19 @@ This script will register the native messaging host with Chrome, pointing it to 
 2.  You should see a "Start Native PIP" button.
 3.  Clicking it should launch the native MeetPIP window.
 
+## Features
+
+- **Toggle PIP**: The button tracks state. Click "Start Native PIP" to open, and "Stop Native PIP" to close/disconnect.
+- **Mute Support**:
+    - Toggle mute directly from the Native PIP window using the "Mute/Unmute" button.
+    - **Keyboard Shortcut**: `Cmd+Shift+M` (when Native PIP window is focused).
+- **Compact UI**: The native window is optimized for minimal footprint while keeping speaker visibility.
+
 ## Development
 
 - `make build-extension`: Rebuild just the extension.
 - `make build-app`: Rebuild just the native app.
+    - **Custom Signing**: `make build-app TEAM_ID=YOUR_TEAM_ID` to sign with a specific identity.
 - `npm run dev`: Start the Vite dev server for UI components.
 
 ## Troubleshooting

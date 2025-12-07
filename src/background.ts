@@ -45,8 +45,11 @@ chrome.runtime.onConnect.addListener((port) => {
 			});
 
 			port.onMessage.addListener((msg) => {
+				console.log('Content script -> Native app:', msg);
 				if (nativePort) {
 					nativePort.postMessage(msg);
+				} else {
+					console.warn('Cannot forward to native app - nativePort is null');
 				}
 			});
 

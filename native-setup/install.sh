@@ -29,7 +29,7 @@ fi
 # Calculate the absolute path to the binary
 # Assumes the script is in 'native-setup' and the binary is in the standard DerivedData location relative to the project root
 # Modify this path if your build output location changes
-BINARY_PATH="$PROJECT_ROOT/meet-pip/DerivedData/meetpip/Build/Products/Debug/meetpip.app/Contents/MacOS/meetpip"
+BINARY_PATH="$PROJECT_ROOT/meet-pip/DerivedData/Build/Products/Debug/meetpip.app/Contents/MacOS/meetpip"
 
 if [ ! -f "$BINARY_PATH" ]; then
     echo "WARNING: Binary not found at $BINARY_PATH"
@@ -45,7 +45,7 @@ mkdir -p "$TARGET_DIR"
 
 # Generate the manifest with the correct path and extension ID
 sed -e "s|REPLACE_WITH_ABSOLUTE_PATH|$BINARY_PATH|g" \
-    -e "s|chrome-extension://gpdhpobcgfffikfchpgdffmbbkllgmfm/|chrome-extension://$EXTENSION_ID/|g" \
+    -e "s|REPLACE_WITH_EXTENSION_ID|$EXTENSION_ID|g" \
     "$DIR/$HOST_NAME.json" > "$TARGET_DIR/$HOST_NAME.json"
 
 echo "Installed manifest to $TARGET_DIR/$HOST_NAME.json"

@@ -22,7 +22,17 @@ export class SpeakerDetector {
 
 		// 1. Identify active speakers in the current frame
 		elems.forEach(el => {
-			const img = el.querySelector(imgSelector) as HTMLImageElement;
+			// High-Res Image Logic: Prefer .SOQwsf or 2nd image
+			let img = el.querySelector('.SOQwsf') as HTMLImageElement;
+			if (!img) {
+				const images = el.querySelectorAll('img');
+				if (images.length > 1) {
+					img = images[1] as HTMLImageElement;
+				} else {
+					img = el.querySelector(imgSelector) as HTMLImageElement;
+				}
+			}
+
 			if (!img || !img.src) return;
 
 			const isActive = el.classList.contains(activeClass);
