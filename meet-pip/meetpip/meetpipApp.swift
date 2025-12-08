@@ -9,7 +9,8 @@ struct meetpipApp: App {
     
     // We run the input listener on @main
     var body: some Scene {
-        WindowGroup {
+        // Main PIP Window
+        WindowGroup("MeetPIP") {
             ContentView()
                 .onAppear {
                     if let window = NSApplication.shared.windows.first {
@@ -24,5 +25,10 @@ struct meetpipApp: App {
                 }
         }
         .windowStyle(HiddenTitleBarWindowStyle())
+        
+        // Settings Window (automatically adds Settings menu item)
+        Settings {
+            SettingsView()
+        }
     }
 }

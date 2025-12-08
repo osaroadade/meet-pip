@@ -63,7 +63,23 @@ This script will register the native messaging host with Chrome, pointing it to 
 - **Mute Support**:
     - Toggle mute directly from the Native PIP window using the "Mute/Unmute" button.
     - **Keyboard Shortcut**: `Cmd+Shift+M` (when Native PIP window is focused).
+- **Customization Settings**:
+    - **Access Settings**: Press `Cmd+,` or select **MeetPIP → Settings...** from the menu bar.
+    - **Layout Orientation**: Choose between horizontal (left-to-right) or vertical (top-to-bottom) speaker arrangement.
+    - **Profile Picture Size**: Adjust avatar size from 28px to 128px (default: 48px).
+    - Settings persist across app launches automatically.
 - **Compact UI**: The native window is optimized for minimal footprint while keeping speaker visibility.
+
+## Limitations & Workarounds
+
+**Background functionality limitation**: The extension does not work when the Google Meet tab is in the background (i.e., when you switch to another tab or Picture-in-Picture mode). 
+
+**Workaround**: Open the Google Meet call in a **new window** instead of a tab. This allows you to keep the Meet session running in the foreground while you work in other tabs or windows, maintaining the Native PIP functionality.
+
+To open Google Meet in a new window:
+1. Click the three-dot menu in the top-right corner of the Google Meet tab.
+2. Select "Move tab to new window" or simply drag the tab out of the browser window.
+3. You can now switch to other tabs/windows while the Native PIP continues to work.
 
 ## Development
 
